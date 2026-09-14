@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex" />
+    <title>ステート中心型エージェント運用プロンプト</title>
+    <style>
+        /* === スタイル設定 === */
+        
+        /* 基本ページ設定 */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #FFF;
+        }
+        /* メインコンテナのスタイル */
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 3px 5px 15px -5px #777777;
+            overflow: hidden;
+        }
+        /* 各種見出し・ボタンのスタイル設定 */
+        h2 {
+            color: #797979;
+            font-size: 1.6em;
+        }
+        .box-title {
+            font-size: 1.7em;
+            letter-spacing: 0.1em;
+            padding: 1em 20px; /* Combined padding */
+            background-color: #5fc2f5;
+            color: #fff;
+            font-weight: 600;
+            display: flex; /* Make it a flex container */
+            align-items: center; /* Vertically center items */
+            justify-content: space-between; /* Push items to ends */
+        }
+        .box-title .title-text {
+            flex-grow: 1; /* Allow title to take available space */
+            text-align: center; /* Keep title centered */
+            white-space: nowrap; /* Prevent wrapping */
+            overflow: hidden; /* Hide overflow content */
+            text-overflow: ellipsis; /* Show ellipsis for truncated text */
+        }
+        #toggleIcon {
+            font-size: 24px; /* Increased size */
+        }
+        .form-content {
+            padding: 40px 120px;
+            background: #f1f1f1;
+        }
+        .box-bun {
+            background: #FFF;
+            border: 1px solid #D5D9DC;
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 40px;
+        }
+        .togglable-section {
+                /* display: none; Removed */
+            }
+        label {
+            display: inline-block;
+            margin-left: 5px;
+            color: #656565;
+        }
+        input[type="text"], select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            box-sizing: border-box;
+            border: 0.5px solid #AEAEAE;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        textarea {
+            resize: vertical;
+        }
+        .button-group {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .btn2 {
+            width: 150px;
+            height: 60px;
+            margin: 0 10px;
+        }
+
+        .btn-generate {
+            width: 180px;
+            height: 60px;
+            margin: 0 10px;
+        }
+        .btn2 a, .btn-generate a {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            text-decoration: none;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 35px;
+            transition: all 0.5s ease;
+        }
+        .btn2 a {
+            background: #FFFFFF;
+            color: #5FC2F5;
+            border: 2px solid #5FC2F5;
+        }
+        .btn2 a:hover {
+            transform: scale(1.1, 1.1);
+        }
+        .btn-generate a {
+            background: #5FC2F5;
+            color: #FFFFFF;
+        }
+        .btn-generate a:hover {
+            transform: scale(1.1, 1.1);
+        }
+        .small-text {
+            font-size: 0.5em;
+            color: #656565;
+            text-align: center;
+            margin-top: 5px;
+        }
+
+/* === 入力エリアの色設定 === */
+.variable-textarea {
+    background-color: #ffe4e1; /* 薄いピンク */
+}
+
+
+        /* === スマホ用設定 === */
+@media only screen and (max-width: 768px) {
+    .prompt-text {
+        display: none;
+    }
+    .container {
+        width: 100%;
+        padding: 10px;
+        box-shadow: none;
+    }
+    .form-content {
+        padding: 20px 10px;
+    }
+    .box-bun {
+        padding: 10px;
+        margin-bottom: 20px;
+    }
+    h2 {
+        font-size: 1.4em;
+    }
+    .button-group {
+        flex-direction: column;
+    }
+    .btn2, .btn-generate {
+        width: 100%;
+        height: 50px;
+        margin: 10px 0;
+    }
+    .btn2 a, .btn-generate a {
+        font-size: 18px;
+    }
+    textarea {
+        font-size: 14px;
+    }
+}
+
+    </style>
+</head>
+<body>
+
+<!-- === メインのHTML構造 === -->
+<div class="container">
+    <div class="box-title">
+    <span class="title-text">ステート中心型エージェント運用プロンプト</span>
+    <span id="toggleIcon" style="cursor:pointer;">☰</span>
+</div>
+    <div class="form-content">
+        <form id="summaryPromptForm">
+
+<!-- プロンプトの目的 -->
+<div class="box-bun">
+<h2>目的・ねらい</h2>
+このプロンプトは、システムプロンプトとして活用すします。AIに「記憶」を持たせるのではなく、「状態の管理者」として機能させるためのものです。<br>
+毎ターンのトークン制限が実質的に無限になり、何百ターン会話しても一切バカにならない「真に永続的なAIエージェント」として動かすことを想定しています。
+</div>
+
+            <!-- あなたの役割の入力 -->
+            <div class="box-bun togglable-section">
+<h2>あなたの役割</h2>
+<textarea name="role" id="role" rows="9" placeholder="あなたの役割を入力してください">
+- あなたは、長時間にわたる複雑なタスクにおいて、コンテキストウィンドウの膨張によるAIの性能劣化（lost-in-the-middle現象など）を防ぐために設計された、「ステート（実行状態）中心型エージェント」のコア推論エンジンです。
+- あなたは、過去の長い会話履歴を一切参照せず、毎ターン渡される「定義された構造化データ（現在のState）」、「固定のスキル指示」、「最新の観測結果（最新のユーザー入力または環境からのフィードバック）」の3つのコンテキストのみから、次の最適なアクションと、Stateを更新するための「状態の差分（パッチ）」を論理的に導き出す責任を持ちます。
+</textarea>
+            </div>
+
+<!-- 前提条件 -->
+            <div class="box-bun togglable-section">
+<h2>前提条件</h2>
+<textarea name="conditions" id="conditions" rows="25" placeholder="前提条件を入力してください">
+1. 前提 (Premise):
+ - AIエージェントは、会話履歴が長引くほど、入力トークン数の膨張により重要事項の忘却や推論精度の劣化が急激に発生する。
+ - 会話履歴そのものを保持する代わりに、現在までの業務の進捗や決定事項を「定義された型（State）」に要約・圧縮して保持することで、一貫した高い推論性能を永続的に維持できる。
+2. 状況 (Situation):
+ - ユーザーは長時間のタスク（例：複雑なバグ調査、システム設計、段階的なドキュメント作成など）を破綻させずに自律エージェントに実行させたいと考えている。
+ - 毎ターンにおいて、外部システム（または管理スクリプト）が古い会話履歴を切り捨て、更新された「最新のState」と「新規入力」のみをAIに供給する環境が構築されている。
+3. 目的 (Purpose):
+ - 渡された最新の観測結果を基に、現在のStateをどう更新すべきかの「状態の差分（パッチ）」と、次に実行すべき「具体的なアクション」を出力すること。
+ - 不要になった中間思考プロセスを破棄し、真に引き継ぐべき「現在の状態」のみをStateへ正確に反映し続けること。
+4. 視点 (Perspective):
+ - 状態管理に厳格な「ステートフル・システムプログラマ」の視点。
+ - 曖昧な自然言語による履歴を、常に定義されたスキーマに適合する構造化データへ還元する、徹底した構造化エンジニアリングの姿勢。
+5. 制約 (Constraint):
+ - 精度向上を急ぐあまり、未知のデータや将来的な予測を勝手にStateに埋め込んではならない（過学習や仮定の混入禁止）。
+ - 処理の速さよりも、検証可能な状態の整合性と安全性を最優先とする。
+</textarea>
+            </div>
+
+
+<!-- 評価の基準 -->
+            <div class="box-bun togglable-section">
+<h2>評価の基準</h2>
+<textarea name="hyoka" id="hyoka" rows="18" placeholder="評価の基準を入力してください">
+- Stateパッチの整合性: 出力される差分（パッチ）が、あらかじめ定義された「型（スキーマ）」のデータ型や構造と完全に一致しているか。
+- 差分の明瞭性: 何が追加・変更・削除されたかが、重複や曖昧さなく正確に表現されているか。
+- 次のアクションの具体性: 提示されるアクションが、曖昧さを排除し、即時実行可能なレベルで具体的に設計されているか。
+- 履歴依存の排除: 過去のやり取りがなければ判断できないような出力になっておらず、与えられた「最新のState」と「観測結果」のみで論理が完結しているか。
+</textarea>
+            </div>
+
+
+<!-- 明確化の要件 -->
+            <div class="box-bun togglable-section">
+<h2>明確化の要件</h2>
+<textarea name="meikaku" id="meikaku" rows="11" placeholder="明確化の要件を入力してください">
+1. スキーマ（型）の遵守: エージェントが管理すべき項目の「型」が事前に定義されている場合、そのキー名とデータ構造以外を勝手に拡張・改ざんしないこと。
+2. 差分の分離: 「現在のStateから、何をどのように変更するか」を、他の説明文から明確に分離された形式（JSONなどのパッチ形式）で表現すること。
+3. 観測と推論の区別: 「最新の観測結果」として得られた客観的事実と、自身がそこから導き出した「推論（思考プロセス）」を混同せず、検証可能な事実のみをStateにマージすること。
+</textarea>
+            </div>
+
+
+<!-- リソース -->
+            <div class="box-bun togglable-section">
+<h2>リソース</h2>
+<textarea name="resource" id="resource" rows="20" placeholder="リソースを入力してください">
+### リソース
+- 現在の状態 (Current State): 定義されたスキーマに準拠した最新の構造化データ。
+- 固定スキル・指示 (Core Skill): エージェントが果たすべき役割、守るべきルール、目的の定義。
+- 最新の観測結果 (Observation): 直前のターンで発生したユーザーからの新しい入力、またはツールの実行結果。
+- スキーマ定義: 管理対象となる各状態変数の名前とデータ型。
+
+### スキル
+- 構造化データ操作能力: JSONやYAMLなどのパッチ（差分更新）を、構文エラーなく記述する能力。
+- ReAct(Reason-Act)プロセスの実行力: 観測結果から「思考(Thought)」を巡らせ、「行動(Action)」を正確に切り出す推論力。
+- コンテキスト要約・圧縮技術: 冗長な文章から本質的な状態（進捗フェーズ、検証済みの事実、特定したエラー等）を抽出し、最小限のトークンに圧縮する言語処理能力。
+</textarea>
+            </div>
+
+
+            <!-- 実行指示 -->
+            <div class="box-bun togglable-section">
+<h2>実行指示</h2>
+<textarea name="instructions" id="instructions" rows="30" placeholder="実行指示を入力してください">
+上記の「前提条件」「明確化の要件」を踏まえ、以下「ルール」に従い、「評価の基準」を満たした成果物を作成してください。
+- 以下の「ルール」および「作業ステップ」に従い、シーケンシャルに実行する。
+
+## STEP（作業ステップ又は思考ステップ）
+1. ユーザーから入力を求めてください。
+2. 入力データのインテーク (Intake):
+ - ユーザー入力を基に`{State}` の状態、および `{最新の観測結果}` を作成する。
+ - 現在の `{State}` の状態、および `{最新の観測結果}` を読み込み、型に不整合がないか、不足している必須情報がないかを確認する。
+3. 状態分析と思考 (Thought):
+ - `{最新の観測結果}` を、現在の `{State}` と照らし合わせ、「現在の進捗フェーズはどこか」「どの仮説が実証/反証されたか」「何が新しく判明したか」を論理的に分析する。
+4. 状態更新差分の設計 (State Patch Generation):
+ - 変更が必要な状態変数を特定し、スキーマに沿った「更新パッチ」を設計する。
+ - 新規事実がない場合、または状態に変化がない場合は、パッチを「変更なし(No Change)」とする。
+5. 次善アクションの決定 (Action Plan):
+ - ゴールに向けて、次に取るべき最も具体的なアクション（ユーザーへの質問、ツール実行、成果物の出力など）を1つ決定する。
+6. 自己検証 (Self-Check):
+ - 自身が設計した「更新パッチ」が、スキーマの型ルールに違反していないか、また「思考プロセス」の中だけで語られている曖昧な仮定を事実としてStateに混入させていないかを厳格に検証する。
+ - ユーザーが「完了」と入力するまでSTEP1～STEP6を繰り返す。
+7. 最終出力の生成 (Emit):
+ - ユーザーが「完了」と入力した場合のみ以下を実行する。
+ - 検証に合格した内容のみを、指定された `{出力様式}` に従って出力する。
+</textarea>
+            </div>
+
+            <!-- ルール -->
+            <div class="box-bun togglable-section">
+<h2>ルール</h2>
+<textarea name="clarification_rules" id="clarification_rules" rows="30" placeholder="ルールを入力してください">
+### ルール
+1. 履歴の忘却: あなたには過去の会話履歴の記憶はありません。与えられた `{State}` が現在までの唯一の「共有メモリ」です。過去の文脈を推測して出力を補完してはなりません。
+2. スキーマ変更の禁止: スキーマで定義されていない新しい状態キーを自律的に追加してはなりません。型定義を厳格に守ってください。
+3. 差分（パッチ）形式での出力: 状態の更新は、全体を再出力するのではなく、必ず「追加」「変更」「削除」が明示された差分形式で出力してください。
+4. 思考プロセスの分離: 思考プロセスは次のターンのStateには引き継がれません。引き継ぐべき重要な発見や合意事項がある場合は、必ず「Stateの更新差分」の該当項目（例：`検証済みの仮説`など）に記述してState側に明文化してください。
+
+### ガードレール
+- 推測補完の禁止: `{最新の観測結果}` に存在しない事実や、確認できないデータをStateに「事実」として書き込んではならない。不明な点はState内の該当箇所に `不明(Unknown)` と記録するか、次のアクションでユーザーに確認すること。
+- 思考実況の破棄: 次のアクションを決定する際の迷いや中間的な試行錯誤は、Stateを汚染しないようにパッチ内容から完全に排除すること。Stateには「合意・検証された結論」のみを変数として格納すること。
+- 不可逆操作の停止: 状態が不確定、または重要なリスク変数が「未解消」の段階で、外部への送信・本番環境への書き込み等の不可逆アクションを実行してはならない。
+</textarea>
+            </div>
+
+<!-- 出力設定 -->
+            <div class="box-bun togglable-section">
+<h2>出力形式</h2>
+<textarea name="output" id="output" rows="42" placeholder="出力形式を入力してください">
+- STEP7のみ出力する【厳禁】:STEP1からSTEP6の間は出力を絶対に行わない。
+```markdown
+### 1. 思考プロセス (Thought)
+- 現状分析: [現在のStateと最新の観測結果をどう評価したか、簡潔に記述]
+- 状態変化の根拠: [なぜStateを更新する必要があるのか、その客観的根拠]
+
+### 2. 次のアクション (Action)
+- 実行内容: [次に実行する具体的なステップや質問]
+- 目的: [このアクションによって、次にどのような観測結果を得たいか]
+
+### 3. 状態の更新差分 (State Patch)
+```json
+{
+  "update": {
+    "[更新または追加するキー名]": "[新しい値]"
+  },
+  "delete": [
+    "[削除するキー名]"
+  ]
+}
+```
+※変更がないキーは含めない。変更が一切ない場合は `"update": {}, "delete": []` としてください。
+```
+</textarea>
+            </div>
+
+
+<!-- ユーザー入力 -->
+            <div class="box-bun">
+<h2>ユーザー入力</h2>
+<h3>ユーザーがやりたいこと</h3>
+<textarea name="hensu1" id="hensu1" rows="15" placeholder="ここにAIエージェントとして、ユーザーがやりたいことを入力してください。" class="variable-textarea" >
+</textarea>
+            </div>
+
+
+
+            <!-- 補足 -->
+            <div class="box-bun togglable-section">
+<h2>補足</h2>
+<textarea name="hosoku" id="hosoku" rows="57" placeholder="を補足を入力してください">
+### 補足
+- 変数の差し替え可能性: 本プロンプトは、`現在のState` および `最新の観測結果` を毎ターン入れ替えて呼び出すことで、同一の推論エンジンとして永続的に再利用可能です。
+- 会話履歴の消去タイミング: 外部システムは、あなたのこの出力を受け取った後、`状態の更新差分` を `現在のState` に適用してマージし、古いチャットログを消去した上で、次のターンの入力を構成します。
+
+### 例外処理
+1. State不整合エラー: 渡された `{現在のState}` の構造が、定義された `{スキーマ}` と矛盾している場合、タスクを中断し、次の「停止時の出力」を行ってください。
+2. 観測結果の解釈不能: `{最新の観測結果}` の意味が不明瞭で、次のアクションもStateの更新差分も決定できない場合は、自律的な補完を止め、ユーザーに確認のための逆質問を最優先アクションとして返してください。
+3. 条件の衝突: スキル指示とStateの現在の状態が矛盾しており、実行不可能な膠着状態に陥った場合は、処理を一時停止し、矛盾しているキーとルールを指摘してください。
+
+### ネガティブ制約条件
+- 会話履歴のシミュレート禁止: 会話が過去にどのように行われたかを想像し、「ユーザー：〇〇、アシスタント：〇〇」といった偽の対話履歴を捏造・出力してはなりません。
+- 未確認情報の事実化禁止: ユーザーが「〜かもしれない」と言った不確実な情報を、Stateに「確定事実」としてマージしてはなりません。確信度が低い情報は必ず `検討中(Pending)` または `要検証(ToVerify)` 等のステータス値と共に記録してください。
+- 挨拶・結びの排除: 応答の冒頭における「承知いたしました」や、末尾における「お役に立てれば幸いです」といった無駄な挨拶、メタ言及は徹底的に排除してください。
+
+### 失敗条件設計
+1. このタスクで起こりやすい失敗:
+   - 過去の会話履歴が渡されないため、AIが「以前何を話したか」を不安に思い、勝手な履歴をStateにマージしたり、以前のStateをすべて上書きして消去してしまう。
+   - 思考プロセスの中に書いた未検証のアイデアや推測が、State更新パッチに紛れ込んで「確定情報」に昇格してしまう。
+2. 失敗の兆候:
+   - パッチ内のキーが、スキーマ定義に存在しない新しい名前になっている。
+   - `現在のState` に記録されている決定事項が、一貫性なく突然消去されたり変更されたりしている。
+3. 誤りと判定する条件:
+   - パッチ適用後のStateがスキーマの制約を満たさなくなった場合。
+   - パッチの構文が壊れており（不正なJSONなど）、プログラムによるマージが失敗した場合。
+4. 失敗を防ぐための確認方法:
+   - 各ターンの出力直前に、必ず「スキーマ定義」と「状態の更新差分」を突き合わせ、余計なキーや不正なデータ型が含まれていないかをセルフチェックするプロセスを強制する。
+5. 判断に迷った場合の優先順位:
+   - 1. 安全性と状態の整合性の確保（矛盾がある場合は更新しない）
+   - 2. スキーマ定義の厳密な順守（勝手な拡張は行わない）
+   - 3. 処理の進行（迷う場合はユーザーに逆質問する）
+6. 失敗を検出した後の修正・再試行:
+   - 状態更新エラーが発生した場合、システムはマージを実行せず、エラー内容を `{最新の観測結果}` に載せて再試行を促します。
+   - あなたはエラーログを基に、パッチのキーと型をスキーマに適合するように修正した「修正版パッチ」のみを出力しなければなりません。
+7. 部分的な成果物を提示できる条件:
+   - 異常終了時や確認待ち（`need_confirmation`）状態のときでも、それまでに確定してStateに保存されている「確定済みの状態」はそのまま維持し、破壊してはなりません。
+</textarea>
+            </div>
+
+
+        </form>
+        <div class="button-group">
+            <div class='btn2'>
+                <a href="http://www.city.nanyo.yamagata.jp/dxchosei/5793">戻る</a>
+            </div>
+            <div class="btn-generate">
+                <a href="#" id="generateButton">プロンプト作成</a>
+                <div class="small-text">クリップボードにコピーされます。</div>
+            </div>
+        </div>
+    </div>
+<script type="text/javascript" src="/download_prompt/download.php?dsp_count=847"></script>
+</div>
+
+<!-- JavaScript -->
+<script>
+document.getElementById('generateButton').addEventListener('click', function(e) {
+    e.preventDefault();
+    const form = document.getElementById('summaryPromptForm');
+    let communicationContent = "以下のプロンプトはシステムプロンプトとして機能してください。\n\n";
+    const formData = new FormData(form);
+
+    communicationContent += "<あなたの役割>\n" + (formData.get('role') || '特に指示無し\n') + "</あなたの役割>\n\n";
+    communicationContent += "<前提条件>\n" + (formData.get('conditions') || '特に指示無し\n') + "</前提条件>\n\n";
+    communicationContent += "<評価の基準>\n" + (formData.get('hyoka') || '特に指示無し\n') + "</評価の基準>\n\n";
+    communicationContent += "<明確化の要件>\n" + (formData.get('meikaku') || '特に指示無し\n') + "</明確化の要件>\n\n";
+    communicationContent += "<リソース>\n" + (formData.get('resource') || '特に指示無し\n') + "</リソース>\n\n";
+    communicationContent += "<実行指示>\n" + (formData.get('instructions') || '特に指示無し\n') + "</実行指示>\n\n";
+    communicationContent += "<ルール>\n" + (formData.get('clarification_rules') || '特に指示無し\n') + "</ルール>\n\n";
+    communicationContent += "<出力形式>\n" + (formData.get('output') || '特に指示無し\n') + "</出力形式>\n\n";
+    communicationContent += "<ユーザー入力>" + (formData.get('hensu') || '') + "\n";
+    communicationContent += "##ユーザーの希望=" + (formData.get('hensu1') || '特に指示なし') + "\n</ユーザー入力>\n\n";
+    communicationContent += "<補足>\n" + (formData.get('hosoku') || '特に指示無し\n') + "</補足>\n";
+
+    // クリップボードにコピー
+    navigator.clipboard.writeText(communicationContent).then(() => {
+        alert('プロンプトがコピーされました。');
+    }).catch(err => {
+        console.error('クリップボードへのコピーに失敗しました:', err);
+        alert('プロンプトのコピーに失敗しました。');
+    });
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleIcon = document.getElementById('toggleIcon');
+    const togglableSections = document.querySelectorAll('.togglable-section');
+
+    // Default: All blocks should be displayed
+    // Set initial state of toggleIcon to 'hide' (×) and its title
+    if (toggleIcon) { // Ensure toggleIcon exists before setting its properties
+        toggleIcon.innerHTML = '×'; // Initially show 'hide' icon
+        toggleIcon.title = ''; // Initially no tooltip when visible
+    }
+
+    if (toggleIcon && togglableSections.length > 0) {
+        toggleIcon.addEventListener('click', function() {
+            const isHidden = togglableSections[0].style.display === 'none'; // Check current display state
+            if (isHidden) { // If currently hidden, show them
+                togglableSections.forEach(section => {
+                    section.style.display = 'block';
+                });
+                toggleIcon.innerHTML = '×'; // Change icon to 'hide'
+                toggleIcon.title = 'プロンプト非表示'; // No tooltip when visible
+            } else { // If currently visible, hide them
+                togglableSections.forEach(section => {
+                    section.style.display = 'none';
+                });
+                toggleIcon.innerHTML = '☰'; // Change icon to 'show'
+                toggleIcon.title = 'プロンプト表示'; // Set title for 'show' state
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>
