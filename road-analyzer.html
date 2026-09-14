@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ドラレコ路面状況 AI解析ツール</title>
+<style>
+:root{
+  --bg:#f5f7fa; --card:#fff; --line:#dde3ea; --txt:#1f2933;
+  --accent:#1a6fb5; --accent-d:#125089; --warn:#c0392b; --ok:#1e8449;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;
+  background:var(--bg);color:var(--txt);font-size:14px;line-height:1.6;}
+header{background:var(--accent);color:#fff;padding:14px 20px;}
+header h1{margin:0;font-size:18px;}
+header p{margin:4px 0 0;font-size:12px;opacity:.9;}
+main{max-width:1200px;margin:0 auto;padding:16px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;
+  padding:16px;margin-bottom:16px;}
+.card h2{margin:0 0 12px;font-size:15px;border-left:4px solid var(--accent);
+  padding-left:8px;}
+.grid{display:grid;gap:12px;}
+.g2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}
+.g3{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));}
+label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:#52606d;}
+input[type=text],input[type=password],input[type=number],select,textarea{
+  width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:5px;
+  font-family:inherit;font-size:13px;background:#fff;}
+textarea{resize:vertical;font-family:"Consolas",monospace;font-size:12px;}
+button{background:var(--accent);color:#fff;border:0;border-radius:5px;
+  padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;}
+button:hover{background:var(--accent-d);}
+button:disabled{background:#9aa5b1;cursor:not-allowed;}
+button.sub{background:#52606d;}
+button.sub:hover{background:#3e4c59;}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;}
+.hint{font-size:11px;color:#7b8794;margin-top:4px;}
+video{width:100%;max-height:280px;background:#000;border-radius:6px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;
+  vertical-align:top;}
+th{background:#eef2f6;position:sticky;top:0;}
+td img{width:120px;border-radius:4px;display:block;cursor:pointer;}
+.tblwrap{max-height:560px;overflow:auto;border:1px solid var(--line);
+  border-radius:6px;}
+.badge{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;
+  font-weight:700;color:#fff;}
+.b-A{background:#c0392b;} .b-B{background:#e67e22;}
+.b-C{background:#f1c40f;color:#333;} .b-D{background:#1e8449;}
+.b-N{background:#9aa5b1;}
+progress{width:100%;height:16px;}
+#log{background:#1f2933;color:#cbd2d9;font-family:Consolas,monospace;
+  font-size:11px;padding:10px;border-radius:6px;height:130px;overflow:auto;
+  white-space:pre-wrap;}
+.stat{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-bottom:8px;}
+.stat b{font-size:18px;color:var(--accent);}
+details summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--accent);}
+.pill{background:#eef2f6;border:1px solid var(--line);border-radius:4px;
+  padding:2px 6px;font-size:11px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>ドラレコ映像 路面状況 AI解析ツール（簡易版）</h1>
+  <p>動画をブラウザ内でフレーム抽出し、指定したAI APIへ送信して路面損傷を判定します。動画自体はサーバへ送信されません（抽出画像のみAPIへ送信）。</p>
+</header>
+<main>
+
+<!-- 1. 動画 -->
+<div class="card">
+  <h2>1. 動画の読み込み</h2>
+  <div class="grid g2">
+    <div>
+      <label>ドラレコ動画ファイル</label>
+      <input type="file" id="videoFile" accept="video/*">
+      <div class="hint">mp4 / webm など。ブラウザが再生できる形式に限ります。</div>
+      <div class="hint" id="vinfo">—</div>
+    </div>
+    <div>
+      <label>プレビュー</label>
+      <video id="video" controls muted playsinline></video>
+    </div>
+  </div>
+</div>
+
+<!-- 2. 抽出設定 -->
+<div class="card">
+  <h2>2. フレーム抽出設定</h2>
+  <div class="grid g3">
+    <div><label>抽出間隔（秒）</label><input type="number" id="interval" value="3" min="0.2" step="0.1"></div>
+    <div><label>開始秒</label><input type="number" id="startSec" value="0" min="0" step="1"></div>
+    <div><label>終了秒（0=最後まで）</label><input type="number" id="endSec" value="0" min="0" step="1"></div>
+    <div><label>送信画像の幅(px)</label><input type="number" id="outW" value="768" min="256" step="64"></div>
+    <div><label>JPEG品質(0.1-1.0)</label><input type="number" id="quality" value="0.75" min="0.1" max="1" step="0.05"></div>
+    <div><label>最大フレーム数</label><input type="number" id="maxFrames" value="40" min="1" step="1"></div>
+  </div>
+  <div class="grid g3" style="margin-top:12px">
+    <div><label>下部クロップ率(%)</label><input type="number" id="cropBottom" value="0" min="0" max="80" step="5">
+      <div class="hint">路面が写る下半分だけ切り出す場合に指定（例:50）</div></div>
+    <div><label>並列リクエスト数</label><input type="number" id="concurrency" value="2" min="1" max="8" step="1"></div>
+    <div><label>リクエスト間待機(ms)</label><input type="number" id="waitMs" value="300" min="0" step="100"></div>
+  </div>
+  <div class="row">
+    <button id="btnExtract">フレームを抽出</button>
+    <span class="pill" id="frameCount">抽出済み 0 枚</span>
+  </div>
+  <progress id="pExtract" value="0" max="100" style="display:none"></progress>
+</div>
+
+<!-- 3. API設定 -->
+<div class="card">
+  <h2>3. 解析API設定（ユーザー指定）</h2>
+  <div class="grid g2">
+    <div>
+      <label>リクエスト形式</label>
+      <select id="apiMode">
+        <option value="openai">OpenAI互換（/chat/completions・画像はdata URL）</option>
+        <option value="anthropic">Anthropic互換（/v1/messages・base64画像）</option>
+        <option value="custom">汎用カスタム（JSONテンプレート）</option>
+      </select>
+    </div>
+    <div>
+      <label>エンドポイントURL</label>
+      <input type="text" id="endpoint" placeholder="https://api.example.com/v1/chat/completions">
+      <div class="hint">CORS許可のあるAPI、または自組織のプロキシURLを指定してください。</div>
+    </div>
+    <div>
+      <label>モデル名</label>
+      <input type="text" id="model" placeholder="gpt-4o-mini / claude-sonnet-4 など">
+    </div>
+    <div>
+      <label>APIキー</label>
+      <input type="password" id="apiKey" placeholder="sk-... / 空欄可">
+      <div class="hint">
+        <label style="display:inline;font-weight:400">
+          <input type="checkbox" id="saveKey" style="width:auto"> この端末に保存（localStorage）
+        </label>
+      </div>
+    </div>
+    <div>
+      <label>認証ヘッダ名</label>
+      <input type="text" id="authHeader" value="Authorization">
+    </div>
+    <div>
+      <label>認証値テンプレート</label>
+      <input type="text" id="authTpl" value="Bearer {KEY}">
+      <div class="hint">Anthropic系は ヘッダ名 <code>x-api-key</code>／値 <code>{KEY}</code></div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px">
+    <label>追加ヘッダ（JSON・任意）</label>
+    <textarea id="extraHeaders" rows="2" placeholder='{"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}'></textarea>
+  </div>
+
+  <div style="margin-top:12px">
+    <label>解析プロンプト</label>
+    <textarea id="prompt" rows="9"></textarea>
+  </div>
+
+  <details style="margin-top:12px">
+    <summary>汎用カスタム用テンプレート設定を開く</summary>
+    <div style="margin-top:10px">
+      <label>リクエストBodyテンプレート（JSON）</label>
+      <textarea id="bodyTpl" rows="7">{
+  "model": "{MODEL}",
+  "prompt": "{PROMPT}",
+  "image_base64": "{IMAGE_B64}"
+}</textarea>
+      <div class="hint">利用可能な差し込み変数：<code>{MODEL}</code> <code>{PROMPT}</code> <code>{IMAGE_B64}</code>（base64のみ） <code>{IMAGE_DATAURL}</code>（data:image/jpeg;base64,…）</div>
+      <label style="margin-top:10px">応答テキストの取り出しパス</label>
+      <input type="text" id="respPath" value="choices.0.message.content">
+      <div class="hint">ドット区切り。例：<code>content.0.text</code>（Anthropic） / <code>result.text</code> / 空欄なら応答全体を文字列化</div>
+    </div>
+  </details>
+
+  <div class="row">
+    <button id="btnTest" class="sub">1枚でテスト送信</button>
+    <button id="btnRun">全フレームを解析</button>
+    <button id="btnStop" class="sub" disabled>中断</button>
+  </div>
+  <progress id="pRun" value="0" max="100" style="display:none"></progress>
+</div>
+
+<!-- 4. GPS -->
+<div class="card">
+  <h2>4. 位置情報の突き合わせ（任意）</h2>
+  <div class="grid g2">
+    <div>
+      <label>GPSログ（CSV: 秒,緯度,経度 ／ または GPX）</label>
+      <input type="file" id="gpsFile" accept=".csv,.gpx,.txt">
+      <div class="hint">CSVは1行目ヘッダ可。GPXは trkpt の time を先頭点=0秒として換算します。</div>
+      <div class="hint" id="gpsInfo">未読込</div>
+    </div>
+    <div>
+      <label>動画開始時刻（GPX照合用・任意）</label>
+      <input type="text" id="videoStartTime" placeholder="2026-09-14T09:00:00+09:00">
+      <div class="hint">指定するとGPXの絶対時刻と正確に対応付けます。</div>
+    </div>
+  </div>
+</div>
+
+<!-- 5. 結果 -->
+<div class="card">
+  <h2>5. 解析結果</h2>
+  <div class="stat">
+    <span>解析済 <b id="stDone">0</b> 件</span>
+    <span>要対応(A/B) <b id="stAB">0</b> 件</span>
+    <span>エラー <b id="stErr">0</b> 件</span>
+  </div>
+  <div class="row" style="margin-top:0">
+    <button id="btnCsv" class="sub">CSVダウンロード</button>
+    <button id="btnJson" class="sub">JSONダウンロード</button>
+    <button id="btnClear" class="sub">結果クリア</button>
+  </div>
+  <div class="tblwrap" style="margin-top:12px">
+    <table id="tbl">
+      <thead><tr>
+        <th style="width:60px">時刻</th><th style="width:130px">画像</th>
+        <th style="width:70px">重大度</th><th style="width:120px">損傷種別</th>
+        <th style="width:60px">確信度</th><th>所見</th>
+        <th style="width:130px">緯度経度</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 6. ログ -->
+<div class="card">
+  <h2>6. 実行ログ</h2>
+  <div id="log"></div>
+</div>
+
+</main>
+
+<canvas id="cv" style="display:none"></canvas>
+
+<script>
+/* ===== 既定プロンプト ===== */
+const DEFAULT_PROMPT = `あなたは道路維持管理の点検技術者です。ドライブレコーダーの静止画1枚から、走行車線の路面状況を評価してください。
+判定は必ず下記JSONのみで出力し、前後に説明文やコードブロック記号を付けないこと。
+
+{
+  "severity": "A|B|C|D|N",
+  "damage_types": ["ポットホール","ひび割れ(線状)","ひび割れ(亀甲状)","わだち掘れ","段差","パッチング劣化","白線かすれ","路肩損傷","土砂堆積","冠水","積雪凍結","その他"の中から該当するものを列挙],
+  "confidence": 0.0-1.0の数値,
+  "location_in_image": "左車線/中央/右車線/路肩 など",
+  "note": "40字以内の所見",
+  "visibility": "良好|逆光|夜間|雨天|不良"
+}
+
+重大度の基準:
+A = 緊急対応が必要（大型ポットホール、著しい段差、冠水など通行の危険）
+B = 早期補修が必要（中規模の穴、亀甲状ひび割れ、明確なわだち）
+C = 経過観察（軽微な線状ひび割れ、白線かすれ）
+D = 健全
+N = 判定不能（画像が不鮮明、路面が写っていない）
+
+画像から読み取れない事項は推測せず、confidenceを下げること。`;
+document.getElementById('prompt').value = DEFAULT_PROMPT;
+
+/* ===== 要素参照 ===== */
+const $ = id => document.getElementById(id);
+const video = $('video'), cv = $('cv'), ctx = cv.getContext('2d');
+let frames = [];       // {t, dataUrl, b64}
+let results = [];      // {t, severity, types, conf, note, lat, lon, raw, error}
+let gpsPoints = [];    // {t, lat, lon}
+let stopFlag = false;
+
+/* ===== ログ ===== */
+function log(msg, type){
+  const el = $('log');
+  const ts = new Date().toLocaleTimeString('ja-JP');
+  el.textContent += `[${ts}] ${msg}\n`;
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ===== APIキー保存 ===== */
+(function(){
+  const k = localStorage.getItem('dr_api_key');
+  if(k){ $('apiKey').value = k; $('saveKey').checked = true; }
+  const e = localStorage.getItem('dr_endpoint');
+  if(e) $('endpoint').value = e;
+  const m = localStorage.getItem('dr_model');
+  if(m) $('model').value = m;
+})();
+$('saveKey').addEventListener('change', e=>{
+  if(e.target.checked){ localStorage.setItem('dr_api_key', $('apiKey').value); }
+  else { localStorage.removeItem('dr_api_key'); }
+});
+['endpoint','model'].forEach(id=>{
+  $(id).addEventListener('change', ()=> localStorage.setItem('dr_'+id, $(id).value));
+});
+$('apiKey').addEventListener('change', ()=>{
+  if($('saveKey').checked) localStorage.setItem('dr_api_key', $('apiKey').value);
+});
+
+/* ===== 動画読み込み ===== */
+$('videoFile').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  video.src = URL.createObjectURL(f);
+  video.onloadedmetadata = ()=>{
+    $('vinfo').textContent =
+      `${f.name} / ${video.videoWidth}x${video.videoHeight} / ${video.duration.toFixed(1)}秒 / ${(f.size/1048576).toFixed(1)}MB`;
+    log(`動画読込: ${f.name} (${video.duration.toFixed(1)}s)`);
+  };
+});
+
+/* ===== フレーム抽出 ===== */
+function seekTo(t){
+  return new Promise((res, rej)=>{
+    const onSeek = ()=>{ video.removeEventListener('seeked', onSeek); res(); };
+    video.addEventListener('seeked', onSeek);
+    video.currentTime = t;
+    setTimeout(()=>{ video.removeEventListener('seeked', onSeek); res(); }, 3000);
+  });
+}
+
+$('btnExtract').addEventListener('click', async ()=>{
+  if(!video.src){ alert('動画ファイルを選択してください'); return; }
+  const iv = parseFloat($('interval').value);
+  const st = parseFloat($('startSec').value)||0;
+  let en = parseFloat($('endSec').value)||0;
+  if(en<=0 || en>video.duration) en = video.duration;
+  const maxF = parseInt($('maxFrames').value);
+  const outW = parseInt($('outW').value);
+  const q = parseFloat($('quality').value);
+  const cropB = parseInt($('cropBottom').value)||0;
+
+  frames = [];
+  const times = [];
+  for(let t=st; t<en && times.length<maxF; t+=iv) times.push(+t.toFixed(2));
+  if(!times.length){ alert('抽出対象がありません。開始/終了/間隔を確認してください。'); return; }
+
+  const pb = $('pExtract'); pb.style.display='block'; pb.max = times.length; pb.value = 0;
+  $('btnExtract').disabled = true;
+  log(`フレーム抽出開始: ${times.length}枚`);
+
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const srcY = Math.round(vh * cropB/100);
+  const srcH = vh - srcY;
+  const outH = Math.round(outW * srcH / vw);
+  cv.width = outW; cv.height = outH;
+
+  for(let i=0;i<times.length;i++){
+    await seekTo(times[i]);
+    ctx.drawImage(video, 0, srcY, vw, srcH, 0, 0, outW, outH);
+    const dataUrl = cv.toDataURL('image/jpeg', q);
+    frames.push({ t: times[i], dataUrl, b64: dataUrl.split(',')[1] });
+    pb.value = i+1;
+    $('frameCount').textContent = `抽出済み ${frames.length} 枚`;
+  }
+  $('btnExtract').disabled = false;
+  pb.style.display='none';
+  log(`フレーム抽出完了: ${frames.length}枚 / 1枚あたり約${Math.round(frames[0].b64.length*0.75/1024)}KB`);
+});
+
+/* ===== GPS読込 ===== */
+$('gpsFile').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    const txt = r.result;
+    gpsPoints = [];
+    try{
+      if(f.name.toLowerCase().endsWith('.gpx') || txt.indexOf('<trkpt')>=0){
+        const doc = new DOMParser().parseFromString(txt,'text/xml');
+        const pts = [...doc.getElementsByTagName('trkpt')];
+        let base = null;
+        const vst = $('videoStartTime').value.trim();
+        if(vst) base = new Date(vst).getTime();
+        pts.forEach(p=>{
+          const lat = parseFloat(p.getAttribute('lat'));
+          const lon = parseFloat(p.getAttribute('lon'));
+          const te = p.getElementsByTagName('time')[0];
+          if(!te) return;
+          const ms = new Date(te.textContent).getTime();
+          if(base===null) base = ms;
+          gpsPoints.push({ t:(ms-base)/1000, lat, lon });
+        });
+      } else {
+        txt.split(/\r?\n/).forEach(line=>{
+          const c = line.split(/[,\t]/);
+          if(c.length<3) return;
+          const t = parseFloat(c[0]), la = parseFloat(c[1]), lo = parseFloat(c[2]);
+          if(isNaN(t)||isNaN(la)||isNaN(lo)) return;
+          gpsPoints.push({t, lat:la, lon:lo});
+        });
+      }
+      gpsPoints.sort((a,b)=>a.t-b.t);
+      $('gpsInfo').textContent = `${gpsPoints.length}点 読込（${gpsPoints[0]?.t.toFixed(0)}〜${gpsPoints.at(-1)?.t.toFixed(0)}秒）`;
+      log(`GPS読込: ${gpsPoints.length}点`);
+    }catch(err){
+      $('gpsInfo').textContent = '読込失敗: '+err.message;
+      log('GPS読込失敗: '+err.message);
+    }
+  };
+  r.readAsText(f);
+});
+
+function gpsAt(t){
+  if(!gpsPoints.length) return null;
+  let best = gpsPoints[0], bd = Math.abs(gpsPoints[0].t - t);
+  for(const p of gpsPoints){
+    const d = Math.abs(p.t - t);
+    if(d < bd){ bd = d; best = p; }
+  }
+  return bd <= 10 ? best : null;
+}
+
+/* ===== リクエスト組み立て ===== */
+function buildRequest(frame){
+  const mode = $('apiMode').value;
+  const model = $('model').value.trim();
+  const prompt = $('prompt').value;
+  const key = $('apiKey').value.trim();
+
+  const headers = {'Content-Type':'application/json'};
+  const hn = $('authHeader').value.trim();
+  if(key && hn) headers[hn] = $('authTpl').value.replace('{KEY}', key);
+  const ex = $('extraHeaders').value.trim();
+  if(ex){ try{ Object.assign(headers, JSON.parse(ex)); }catch(e){ throw new Error('追加ヘッダのJSONが不正: '+e.message); } }
+
+  let body, path;
+  if(mode === 'openai'){
+    body = {
+      model, max_tokens: 500, temperature: 0,
+      messages: [{ role:'user', content:[
+        { type:'text', text: prompt },
+        { type:'image_url', image_url:{ url: frame.dataUrl } }
+      ]}]
+    };
+    path = 'choices.0.message.content';
+  } else if(mode === 'anthropic'){
+    body = {
+      model, max_tokens: 500, temperature: 0,
+      messages: [{ role:'user', content:[
+        { type:'image', source:{ type:'base64', media_type:'image/jpeg', data: frame.b64 } },
+        { type:'text', text: prompt }
+      ]}]
+    };
+    path = 'content.0.text';
+    if(!headers['anthropic-version']) headers['anthropic-version'] = '2023-06-01';
+  } else {
+    let tpl = $('bodyTpl').value;
+    tpl = tpl.replace(/\{MODEL\}/g, model)
+             .replace(/\{PROMPT\}/g, JSON.stringify(prompt).slice(1,-1))
+             .replace(/\{IMAGE_B64\}/g, frame.b64)
+             .replace(/\{IMAGE_DATAURL\}/g, frame.dataUrl);
+    body = JSON.parse(tpl);
+    path = $('respPath').value.trim();
+  }
+  return { headers, body, path };
+}
+
+function pick(obj, path){
+  if(!path) return typeof obj==='string'? obj : JSON.stringify(obj);
+  let cur = obj;
+  for(const k of path.split('.')){
+    if(cur == null) return null;
+    cur = Array.isArray(cur) ? cur[parseInt(k)] : cur[k];
+  }
+  return typeof cur === 'string' ? cur : JSON.stringify(cur);
+}
+
+function parseJsonLoose(txt){
+  if(!txt) return null;
+  let s = txt.trim().replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if(a>=0 && b>a) s = s.slice(a, b+1);
+  try{ return JSON.parse(s); }catch(e){ return null; }
+}
+
+async function analyzeFrame(frame){
+  const ep = $('endpoint').value.trim();
+  if(!ep) throw new Error('エンドポイントURLが未設定');
+  const { headers, body, path } = buildRequest(frame);
+  const res = await fetch(ep, { method:'POST', headers, body: JSON.stringify(body) });
+  const txt = await res.text();
+  if(!res.ok) throw new Error(`HTTP ${res.status}: ${txt.slice(0,300)}`);
+  let json;
+  try{ json = JSON.parse(txt); }catch(e){ json = txt; }
+  const content = pick(json, path);
+  return { content, raw: json };
+}
+
+/* ===== テスト送信 ===== */
+$('btnTest').addEventListener('click', async ()=>{
+  if(!frames.length){ alert('先にフレームを抽出してください'); return; }
+  $('btnTest').disabled = true;
+  log('テスト送信中…');
+  try{
+    const r = await analyzeFrame(frames[0]);
+    log('テスト成功。応答テキスト:\n' + String(r.content).slice(0,600));
+    const p = parseJsonLoose(r.content);
+    log(p ? 'JSONパース成功 → severity=' + p.severity
+          : 'JSONパース失敗（プロンプトまたは取り出しパスを調整してください）');
+  }catch(e){
+    log('テスト失敗: ' + e.message);
+    alert('テスト失敗:\n' + e.message +
+      '\n\n・CORS制限の可能性があります\n・エンドポイント/認証ヘッダ/モデル名をご確認ください');
+  }
+  $('btnTest').disabled = false;
+});
+
+/* ===== 全解析 ===== */
+$('btnRun').addEventListener('click', async ()=>{
+  if(!frames.length){ alert('先にフレームを抽出してください'); return; }
+  stopFlag = false;
+  $('btnRun').disabled = true; $('btnStop').disabled = false; $('btnTest').disabled = true;
+  const pb = $('pRun'); pb.style.display='block'; pb.max = frames.length; pb.value = 0;
+  const conc = Math.max(1, parseInt($('concurrency').value));
+  const wait = parseInt($('waitMs').value)||0;
+  log(`解析開始: ${frames.length}枚 / 並列${conc}`);
+
+  let idx = 0, done = 0;
+  async function worker(){
+    while(true){
+      if(stopFlag) return;
+      const i = idx++; if(i >= frames.length) return;
+      const f = frames[i];
+      let rec = { t:f.t, dataUrl:f.dataUrl, severity:'N', types:[], conf:'', note:'', vis:'', loc:'', error:'' };
+      try{
+        const r = await analyzeFrame(f);
+        const p = parseJsonLoose(r.content);
+        if(p){
+          rec.severity = (p.severity||'N').toString().toUpperCase().slice(0,1);
+          rec.types = Array.isArray(p.damage_types) ? p.damage_types : (p.damage_types? [p.damage_types]:[]);
+          rec.conf = (p.confidence!=null)? Number(p.confidence).toFixed(2) : '';
+          rec.note = p.note || '';
+          rec.vis = p.visibility || '';
+          rec.loc = p.location_in_image || '';
+        } else {
+          rec.note = String(r.content).slice(0,200);
+          rec.error = 'JSON解析不可';
+        }
+      }catch(e){
+        rec.error = e.message.slice(0,200);
+        log(`t=${f.t}s エラー: ${e.message.slice(0,120)}`);
+      }
+      const g = gpsAt(f.t);
+      if(g){ rec.lat = g.lat; rec.lon = g.lon; }
+      results.push(rec);
+      done++; pb.value = done;
+      render();
+      if(wait) await new Promise(r=>setTimeout(r, wait));
+    }
+  }
+  await Promise.all(Array.from({length:conc}, worker));
+  pb.style.display='none';
+  $('btnRun').disabled = false; $('btnStop').disabled = true; $('btnTest').disabled = false;
+  log(stopFlag ? '解析を中断しました' : '解析完了');
+});
+
+$('btnStop').addEventListener('click', ()=>{ stopFlag = true; log('中断要求'); });
+$('btnClear').addEventListener('click', ()=>{ results = []; render(); log('結果をクリア'); });
+
+/* ===== 描画 ===== */
+function render(){
+  results.sort((a,b)=>a.t-b.t);
+  const tb = $('tbl').querySelector('tbody');
+  tb.innerHTML = results.map(r=>{
+    const sev = ['A','B','C','D'].includes(r.severity)? r.severity : 'N';
+    const ll = (r.lat!=null)? `${r.lat.toFixed(6)}<br>${r.lon.toFixed(6)}
+      <br><a href="https://maps.google.com/?q=${r.lat},${r.lon}" target="_blank" rel="noopener">地図</a>` : '—';
+    const note = r.error ? `<span style="color:#c0392b">${esc(r.error)}</span>` : esc(r.note);
+    return `<tr>
+      <td>${fmtT(r.t)}</td>
+      <td><img src="${r.dataUrl}" onclick="window.open(this.src)"></td>
+      <td><span class="badge b-${sev}">${sev}</span></td>
+      <td>${esc(r.types.join('、'))}<div class="hint">${esc(r.loc)}</div></td>
+      <td>${esc(r.conf)}<div class="hint">${esc(r.vis)}</div></td>
+      <td>${note}</td>
+      <td>${ll}</td>
+    </tr>`;
+  }).join('');
+  $('stDone').textContent = results.length;
+  $('stAB').textContent = results.filter(r=>r.severity==='A'||r.severity==='B').length;
+  $('stErr').textContent = results.filter(r=>r.error).length;
+}
+function esc(s){ return String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtT(t){
+  const m = Math.floor(t/60), s = (t%60).toFixed(1).padStart(4,'0');
+  return `${m}:${s}`;
+}
+
+/* ===== 出力 ===== */
+function dl(name, text, mime){
+  const b = new Blob([text], {type:mime||'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b); a.download = name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+$('btnCsv').addEventListener('click', ()=>{
+  if(!results.length){ alert('結果がありません'); return; }
+  const head = ['動画内秒数','時刻表記','重大度','損傷種別','確信度','画像内位置','視界','所見','緯度','経度','エラー'];
+  const rows = results.map(r=>[
+    r.t, fmtT(r.t), r.severity, r.types.join('/'), r.conf, r.loc, r.vis,
+    r.note, r.lat??'', r.lon??'', r.error
+  ]);
+  const csv = [head, ...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  dl('road_analysis_'+Date.now()+'.csv', '\uFEFF'+csv, 'text/csv;charset=utf-8');
+});
+$('btnJson').addEventListener('click', ()=>{
+  if(!results.length){ alert('結果がありません'); return; }
+  const out = results.map(({dataUrl, ...r})=>r);
+  dl('road_analysis_'+Date.now()+'.json', JSON.stringify(out,null,2), 'application/json');
+});
+
+/* ===== モード切替でヘッダ既定値を調整 ===== */
+$('apiMode').addEventListener('change', e=>{
+  if(e.target.value==='anthropic'){
+    $('authHeader').value = 'x-api-key';
+    $('authTpl').value = '{KEY}';
+    if(!$('extraHeaders').value.trim())
+      $('extraHeaders').value = '{"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}';
+  } else if(e.target.value==='openai'){
+    $('authHeader').value = 'Authorization';
+    $('authTpl').value = 'Bearer {KEY}';
+  }
+});
+
+log('起動しました。①動画読込 → ②フレーム抽出 → ③API設定＆テスト → 全解析 の順に操作してください。');
+</script>
+</body>
+</html>
