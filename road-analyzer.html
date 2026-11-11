@@ -6,41 +6,41 @@
 <title>ドラレコ路面状況 AI解析ツール</title>
 <style>
 :root{
-  --bg:#f5f7fa; --card:#fff; --line:#dde3ea; --txt:#1f2933;
-  --accent:#1a6fb5; --accent-d:#125089; --warn:#c0392b; --ok:#1e8449;
+  --bg:#eadbd2; --card:#fffaf6; --line:#d8c2b5; --txt:#35251f;
+  --accent:#8f3f2b; --accent-d:#6f2d20; --warn:#a93226; --ok:#47734f;
 }
 *{box-sizing:border-box;}
 body{margin:0;font-family:"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;
   background:var(--bg);color:var(--txt);font-size:14px;line-height:1.6;}
-header{background:var(--accent);color:#fff;padding:14px 20px;}
+header{background:#713322;color:#fff;padding:14px 20px;border-bottom:4px solid #a85d43;}
 header h1{margin:0;font-size:18px;}
 header p{margin:4px 0 0;font-size:12px;opacity:.9;}
 main{max-width:1200px;margin:0 auto;padding:16px;}
 .card{background:var(--card);border:1px solid var(--line);border-radius:8px;
-  padding:16px;margin-bottom:16px;}
+  padding:16px;margin-bottom:16px;box-shadow:0 2px 8px rgba(76,39,27,.07);}
 .card h2{margin:0 0 12px;font-size:15px;border-left:4px solid var(--accent);
   padding-left:8px;}
 .grid{display:grid;gap:12px;}
 .g2{grid-template-columns:repeat(auto-fit,minmax(240px,1fr));}
 .g3{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));}
-label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:#52606d;}
+label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:#70584d;}
 input[type=text],input[type=password],input[type=number],select,textarea{
   width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:5px;
-  font-family:inherit;font-size:13px;background:#fff;}
+  font-family:inherit;font-size:13px;background:#fffdfb;color:var(--txt);}
 textarea{resize:vertical;font-family:"Consolas",monospace;font-size:12px;}
 button{background:var(--accent);color:#fff;border:0;border-radius:5px;
   padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;}
 button:hover{background:var(--accent-d);}
 button:disabled{background:#9aa5b1;cursor:not-allowed;}
-button.sub{background:#52606d;}
-button.sub:hover{background:#3e4c59;}
+button.sub{background:#80685c;}
+button.sub:hover{background:#655044;}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;}
-.hint{font-size:11px;color:#7b8794;margin-top:4px;}
+.hint{font-size:11px;color:#8a7469;margin-top:4px;}
 video{width:100%;max-height:280px;background:#000;border-radius:6px;}
 table{width:100%;border-collapse:collapse;font-size:12px;}
 th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;
   vertical-align:top;}
-th{background:#eef2f6;position:sticky;top:0;}
+th{background:#f1e4dc;position:sticky;top:0;color:#51372d;}
 td img{width:120px;border-radius:4px;display:block;cursor:pointer;}
 .tblwrap{max-height:560px;overflow:auto;border:1px solid var(--line);
   border-radius:6px;}
@@ -56,7 +56,7 @@ progress{width:100%;height:16px;}
 .stat{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-bottom:8px;}
 .stat b{font-size:18px;color:var(--accent);}
 details summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--accent);}
-.pill{background:#eef2f6;border:1px solid var(--line);border-radius:4px;
+.pill{background:#f3e7df;border:1px solid var(--line);border-radius:4px;
   padding:2px 6px;font-size:11px;}
 </style>
 </head>
